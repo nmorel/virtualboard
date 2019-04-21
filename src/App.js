@@ -1,28 +1,42 @@
-import React, {Component} from 'react'
-import logo from './logo.svg'
-import './App.css'
+import React from 'react'
+/** @jsx jsx */
+import {jsx, css, Global} from '@emotion/core'
+import {Board} from './Board'
 
-class App extends Component {
-    render() {
-        return (
-            <div className="App">
-                <header className="App-header">
-                    <img src={logo} className="App-logo" alt="logo" />
-                    <p>
-                        Edit <code>src/App.js</code> and save to reload.
-                    </p>
-                    <a
-                        className="App-link"
-                        href="https://reactjs.org"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        Learn React
-                    </a>
-                </header>
-            </div>
-        )
-    }
-}
-
-export default App
+export const App = () => (
+    <>
+        <Global
+            styles={css`
+                html,
+                body,
+                #root {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                }
+            `}
+        />
+        <div
+            css={css`
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                height: 100%;
+            `}
+        >
+            <header
+                css={css`
+                    padding: 10px;
+                    text-align: center;
+                    font-size: 24px;
+                `}
+            >
+                Virtual Board
+            </header>
+            <section css={{background: 'red', flex: 1}}>
+                <Board />
+            </section>
+        </div>
+    </>
+)
