@@ -3,43 +3,46 @@ import React from 'react'
 /** @jsx jsx */
 import {jsx, css} from '@emotion/core'
 import {useWindowResize} from './useWindowResize'
+import {BoardStore} from './model'
+import {observer} from 'mobx-react-lite'
+
+const lorem = `Le Lorem Ipsum est simplement du faux texte employé dans la composition et la mise en page avant impression. Le Lorem Ipsum est le faux texte standard de l'imprimerie depuis les années 1500, quand un imprimeur anonyme assembla ensemble des morceaux de texte pour réaliser un livre spécimen de polices de texte. Il n'a pas fait que survivre cinq siècles, mais s'est aussi adapté à la bureautique informatique, sans que son contenu n'en soit modifié. Il a été popularisé dans les années 1960 grâce à la vente de feuilles Letraset contenant des passages du Lorem Ipsum, et, plus récemment, par son inclusion dans des applications de mise en page de texte, comme Aldus PageMaker.`
+const rtext = () => lorem.substring(0, Math.floor(Math.random() * Math.floor(lorem.length)))
 
 const data = [
     {
         id: '1',
-        width: 300,
-        height: 450,
         top: -50,
         left: 300,
         color: 'blue',
+        text: rtext(),
     },
     {
         id: '2',
-        width: 160,
-        height: 240,
         top: 250,
         left: 700,
         color: 'yellow',
+        text: rtext(),
     },
     {
         id: '3',
-        width: 160,
-        height: 240,
         top: -500,
         left: -1700,
         color: 'yellow',
+        text: rtext(),
     },
 ]
-for (let i = 3; i < 10000; i++) {
+for (let i = 3; i < 10; i++) {
     data.push({
         id: `${i + 1}`,
-        width: Math.max(200, Math.round(500 * Math.random())),
-        height: Math.max(200, Math.round(500 * Math.random())),
         top: Math.round(10000 * Math.random() * (Math.random() < 0.5 ? -1 : 1)),
         left: Math.round(10000 * Math.random() * (Math.random() < 0.5 ? -1 : 1)),
         color: 'yellow',
+        text: rtext(),
     })
 }
+
+const store = BoardStore.create({items: data})
 
 export const Board = () => {
     const wrapperRef = React.useRef(null)
@@ -64,7 +67,7 @@ export const Board = () => {
             `}
         >
             {!!dimensions.width && !!dimensions.height && (
-                <MainBoard dimensions={dimensions} data={data} />
+                <MainBoard dimensions={dimensions} store={store} />
             )}
         </div>
     )
@@ -115,7 +118,7 @@ const reducer = (state, action) => {
     return state
 }
 
-const MainBoard = React.memo(({dimensions, data}) => {
+const MainBoard = observer(({dimensions, store}) => {
     const [state, dispatch] = React.useReducer(reducer, {
         panning: false,
         panStart: null,
@@ -152,8 +155,6 @@ const MainBoard = React.memo(({dimensions, data}) => {
         bottom: top + totalHeight,
     }
 
-    console.log(visibleBounds)
-
     return (
         <div
             css={{
@@ -181,7 +182,7 @@ const MainBoard = React.memo(({dimensions, data}) => {
                     transform: `translate(${translateX}px, ${translateY}px) scale(${scale}, ${scale})`,
                 }}
             >
-                {data
+                {store.items
                     .filter(
                         d =>
                             d.top < visibleBounds.bottom &&
@@ -190,21 +191,89 @@ const MainBoard = React.memo(({dimensions, data}) => {
                             d.left + d.width > visibleBounds.left
                     )
                     .map(d => (
-                        <div
-                            key={d.id}
-                            css={css`
-                                position: absolute;
-                                top: ${d.top}px;
-                                left: ${d.left}px;
-                                width: ${d.width}px;
-                                height: ${d.height}px;
-                                background: ${d.color};
-                                border: 0;
-                                outline: 0;
-                                box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.3);
-                            `}
-                        />
+                        <Item key={d.id} store={store} item={d} />
                     ))}
+            </div>
+        </div>
+    )
+})
+
+const Item = observer(({store, item}) => {
+    const ref = React.useRef(null)
+    React.useEffect(() => {
+        item.setDimensions({width: item.width, height: ref.current.clientHeight})
+    }, [])
+
+    const [isDown, setIsDown] = React.useState(false)
+    const [lastPos, setLastPos] = React.useState({x: 0, y: 0})
+    React.useLayoutEffect(() => {
+        if (!isDown) {
+            return
+        }
+        const onMouseMove = e => {
+            const newPos = getMousePosFromEvent(e)
+            item.setPosition({
+                left: item.left + (newPos.x - lastPos.x),
+                top: item.top + (newPos.y - lastPos.y),
+            })
+            setLastPos(newPos)
+        }
+        const onMouseUp = () => setIsDown(false)
+        document.addEventListener('mousemove', onMouseMove)
+        document.addEventListener('mouseup', onMouseUp)
+        return () => {
+            document.removeEventListener('mousemove', onMouseMove)
+            document.removeEventListener('mouseup', onMouseUp)
+        }
+    }, [isDown, lastPos])
+
+    const isSelected = store.selected === item
+    return (
+        <div
+            css={[
+                css`
+                    position: absolute;
+                    top: ${item.top - 8}px;
+                    left: ${item.left - 8}px;
+                    width: ${item.width}px;
+                    border: 0;
+                    outline: 0;
+                    user-select: none;
+                    cursor: pointer;
+                    padding: 7px;
+                    border: 1px solid transparent;
+                    backface-visibility: hidden;
+                `,
+                isSelected &&
+                    css`
+                        border-color: blue;
+                    `,
+            ]}
+            onMouseDown={e => {
+                e.stopPropagation()
+                setLastPos(getMousePosFromEvent(e))
+                setIsDown(true)
+            }}
+            onClick={() => {
+                store.setSelected(item)
+            }}
+        >
+            <div
+                ref={ref}
+                css={css`
+                    background: ${item.color};
+                    box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.3);
+                `}
+            >
+                <div
+                    css={css`
+                        padding: 20px;
+                        text-align: center;
+                        font-size: 14px;
+                    `}
+                >
+                    {item.text}
+                </div>
             </div>
         </div>
     )
