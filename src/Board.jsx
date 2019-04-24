@@ -12,13 +12,15 @@ const rtext = () => lorem.substring(0, Math.floor(Math.random() * Math.floor(lor
 const data = [
     {
         id: '1',
-        top: -50,
+        type: 'IDEA',
+        top: 10,
         left: 300,
         color: 'blue',
         text: rtext(),
     },
     {
         id: '2',
+        type: 'IDEA',
         top: 250,
         left: 700,
         color: 'yellow',
@@ -26,15 +28,27 @@ const data = [
     },
     {
         id: '3',
+        type: 'IDEA',
         top: -500,
         left: -1700,
         color: 'yellow',
         text: rtext(),
     },
+    {
+        id: 'r1',
+        type: 'RECTANGLE',
+        top: 10,
+        left: 300,
+        width: 300,
+        height: 300,
+        color: 'green',
+        filled: false,
+    },
 ]
-for (let i = 3; i < 10; i++) {
+for (let i = 3; i < 3; i++) {
     data.push({
         id: `${i + 1}`,
+        type: 'IDEA',
         top: Math.round(10000 * Math.random() * (Math.random() < 0.5 ? -1 : 1)),
         left: Math.round(10000 * Math.random() * (Math.random() < 0.5 ? -1 : 1)),
         color: 'yellow',
@@ -199,10 +213,15 @@ const MainBoard = observer(({dimensions, store}) => {
 })
 
 const Item = observer(({store, item}) => {
-    const ref = React.useRef(null)
-    React.useEffect(() => {
-        item.setDimensions({width: item.width, height: ref.current.clientHeight})
-    }, [])
+    const [Content] = React.useState(() => {
+        switch (item.type) {
+            case 'RECTANGLE':
+                return Rectangle
+            case 'IDEA':
+            default:
+                return Idea
+        }
+    })
 
     const [isDown, setIsDown] = React.useState(false)
     const [lastPos, setLastPos] = React.useState({x: 0, y: 0})
@@ -228,6 +247,14 @@ const Item = observer(({store, item}) => {
     }, [isDown, lastPos])
 
     const isSelected = store.selected === item
+    const events = {
+        onMouseDown: e => {
+            e.stopPropagation()
+            setLastPos(getMousePosFromEvent(e))
+            setIsDown(true)
+        },
+        onClick: () => store.setSelected(item),
+    }
     return (
         <div
             css={[
@@ -235,11 +262,10 @@ const Item = observer(({store, item}) => {
                     position: absolute;
                     top: ${item.top - 8}px;
                     left: ${item.left - 8}px;
-                    width: ${item.width}px;
                     border: 0;
                     outline: 0;
+                    pointer-events: none;
                     user-select: none;
-                    cursor: pointer;
                     padding: 7px;
                     border: 1px solid transparent;
                     backface-visibility: hidden;
@@ -249,32 +275,59 @@ const Item = observer(({store, item}) => {
                         border-color: blue;
                     `,
             ]}
-            onMouseDown={e => {
-                e.stopPropagation()
-                setLastPos(getMousePosFromEvent(e))
-                setIsDown(true)
-            }}
-            onClick={() => {
-                store.setSelected(item)
-            }}
+        >
+            <Content item={item} events={events} />
+        </div>
+    )
+})
+
+const Idea = observer(({item, events}) => {
+    const ref = React.useRef(null)
+    React.useEffect(() => {
+        item.setDimensions({width: item.width, height: ref.current.clientHeight})
+    }, [])
+
+    return (
+        <div
+            ref={ref}
+            css={css`
+                cursor: pointer;
+                pointer-events: auto;
+                width: ${item.width}px;
+                background: ${item.color};
+                box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.3);
+            `}
+            {...events}
         >
             <div
-                ref={ref}
                 css={css`
-                    background: ${item.color};
-                    box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.3);
+                    padding: 20px;
+                    text-align: center;
+                    font-size: 14px;
                 `}
             >
-                <div
-                    css={css`
-                        padding: 20px;
-                        text-align: center;
-                        font-size: 14px;
-                    `}
-                >
-                    {item.text}
-                </div>
+                {item.text}
             </div>
         </div>
+    )
+})
+
+const Rectangle = observer(({item, events}) => {
+    const strokeWidth = item.filled ? 0 : 4
+    return (
+        <svg width={item.width} height={item.height}>
+            <rect
+                cursor="pointer"
+                pointerEvents="painted"
+                x={strokeWidth / 2}
+                y={strokeWidth / 2}
+                width={item.width - strokeWidth}
+                height={item.height - strokeWidth}
+                fill={item.filled ? item.color : 'none'}
+                stroke={item.filled ? 'none' : item.color}
+                strokeWidth={strokeWidth}
+                {...events}
+            />
+        </svg>
     )
 })
