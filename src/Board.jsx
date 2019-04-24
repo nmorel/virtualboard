@@ -70,6 +70,8 @@ export const Board = () => {
     }, [])
     useWindowResize(windowResizeCb)
 
+    const [tool, setTool] = React.useState('move')
+
     return (
         <div
             ref={wrapperRef}
@@ -82,6 +84,105 @@ export const Board = () => {
         >
             {!!dimensions.width && !!dimensions.height && (
                 <MainBoard dimensions={dimensions} store={store} />
+            )}
+            {tool === 'rectangle' && <RectangleDrawing dimensions={dimensions} store={store} />}
+            <div
+                css={css`
+                    position: absolute;
+                    bottom: 10px;
+                    left: 10px;
+                `}
+            >
+                <input
+                    type="radio"
+                    name="tool"
+                    id="move"
+                    value="move"
+                    checked={tool === 'move'}
+                    onChange={e => setTool(e.target.value)}
+                />
+                <label htmlFor="move">Move</label>
+                <input
+                    type="radio"
+                    name="tool"
+                    id="rectangle"
+                    value="rectangle"
+                    checked={tool === 'rectangle'}
+                    onChange={e => setTool(e.target.value)}
+                />
+                <label htmlFor="rectangle">Rectangle</label>
+            </div>
+        </div>
+    )
+}
+
+const RectangleDrawing = ({dimensions, store}) => {
+    const ref = React.useRef(null)
+    const [rect, setRect] = React.useState(null)
+
+    React.useLayoutEffect(() => {
+        if (!rect) {
+            return
+        }
+        const onMouseMove = e => {
+            const boundingRect = ref.current.getBoundingClientRect()
+            const {x, y} = getMousePosFromEvent(e)
+            setRect(rec => ({
+                ...rec,
+                width: x - boundingRect.x - rec.left,
+                height: y - boundingRect.y - rec.top,
+            }))
+        }
+        const onMouseUp = () => {
+            store.addItem({
+                ...rect,
+                id: `r${store.items.length + 1}`,
+            })
+            setRect(null)
+        }
+        document.addEventListener('mousemove', onMouseMove)
+        document.addEventListener('mouseup', onMouseUp)
+        return () => {
+            document.removeEventListener('mousemove', onMouseMove)
+            document.removeEventListener('mouseup', onMouseUp)
+        }
+    }, [rect])
+
+    return (
+        <div
+            ref={ref}
+            css={css`
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: ${dimensions.width}px;
+                height: ${dimensions.height}px;
+            `}
+            onMouseDown={e => {
+                const boundingRect = ref.current.getBoundingClientRect()
+                console.log(boundingRect)
+                const {x, y} = getMousePosFromEvent(e)
+                setRect({
+                    type: 'RECTANGLE',
+                    top: y - boundingRect.y,
+                    left: x - boundingRect.x,
+                    color: 'black',
+                    filled: false,
+                    width: 8,
+                    height: 8,
+                })
+            }}
+        >
+            {!!rect && (
+                <div
+                    css={css`
+                        position: absolute;
+                        top: ${rect.top}px;
+                        left: ${rect.left}px;
+                    `}
+                >
+                    <Rectangle item={rect} />
+                </div>
             )}
         </div>
     )

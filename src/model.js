@@ -72,4 +72,7 @@ export const BoardStore = types
         setSelected(item) {
             self.selected = item
         },
+        addItem(item) {
+            self.items.push(item)
+        },
     }))
